@@ -61,7 +61,7 @@ class TicTacToe:
 				 return True
 
 		if self._num_moves == (self._board_size ** 2 - 1):
-			print 'Draw.'
+			print('Draw.')
 			return True
 
 		return False
@@ -103,6 +103,10 @@ if __name__ == "__main__":
 		choices = {'X', 'O'},
 		default = 'X'
 		)
-
+	parser.add_argument(
+		'--ai',
+		action = 'store_true',
+		help = 'Play against an AI player (AI plays as O). Defaults to human-vs-human.'
+		)
 	args = parser.parse_args()
 	game.play(args.firstmove)
