@@ -2,101 +2,106 @@
 
 import argparse
 
-class TicTacToe:
+class Board:
 	def __init__(self):
-		self._board_pieces = {
-			"X": "X",
-			"O": "O",
-			"skip": "skip"
-		}
+		self._size = 3
+		self._board = [[None for x in range(self._size)]
+			for y in range(self._size)]
 
-		self._board_size = 3
-		self._board = [[None for x in range(self._board_size)]
-			for y in range(self._board_size)]
-		self._num_moves = 0
-
-	def _check_win(self, i):
-		if i == self._board_size - 1:
-			self._render_board()
-			print('Win')
-			return True
-		return False
-
-	def _render_board(self):
+	def __str__(self):
+		buffer = ""
 		for row in self._board:
-			print row
+			buffer += str(row) + '\n'
+		return buffer
 
-	def _move(self, x, y, board_piece):
-		if self._board[x][y] == None:
-			self._board[x][y] = board_piece
-			self._num_moves += 1
+	def _win_horizontal(self):
+		for row in self._board:
+			if row[0] and row[0] == row[1] and row[0] == row[2]:
+				return row[0]
 
-		for i in range(self._board_size):
-			if self._board[x][i] != board_piece:
-				break
+	def _win_vertical(self):
+		b = self._board
+		for col in range(self._size):
+			if b[0][col] and b[0][col] == b[1][col] and \
+				b[0][col] == b[2][col]:
+				return b[0][col]
 
-			if self._check_win(i):
-				return True
+	def _win_diagonals(self):
+		b = self._board
+		if (b[0][0] and b[0][0] == b[1][1] and b[0][0] == b[2][2]) \
+			or \
+			(b[2][0] and b[2][0] == b[1][1] and b[2][0] == b[0][2]):
+			return b[0][0]
 
-		for i in range(self._board_size):
-			if self._board[i][y] != board_piece:
-				break
+	def draw(self):
+		"""Return False if any board space has yet to be filled.
+			and True if all spaces have been filled.
+		"""
+		for row in self._board:
+			for col in row:
+				if col == None:
+					return False
+		return True
 
-			if self._check_win(i):
-				 return True
+	def winner(self):
+		"""Return winner (string) if board in winning state,
+			or None if not in winning state.
+		"""
+		return self._win_horizontal() or self._win_vertical() \
+			or self._win_diagonals()
 
-		if x == y:
-			for i in range(self._board_size):
-				if self._board[i][i] != board_piece:
-					break
+	def _is_legal_move(self, x, y):
+		return not bool(self._board[x][y])
 
-				if self._check_win(i):
-					 return True
+	def _move(self, x, y, player):
+		self._board[x][y] = player
 
-		for i in range(self._board_size):
-			if self._board[i][(self._board_size - 1) - i] != board_piece:
-				break
+	def _update_player(self, current_player):
+		return 'X' if current_player == 'O' else 'O'
 
-			if self._check_win(i):
-				 return True
+	def _game_over(self):
+		"""Return True if game is over and False if not.
+		"""
+		return bool(self.winner()) or self.draw()
 
-		if self._num_moves == (self._board_size ** 2 - 1):
-			print('Draw.')
-			return True
+	def play(self, firstplayer, ai):
+		player = firstplayer
 
-		return False
+		while not self._game_over():
+			print(self)
 
-	def _get_move(self, last_move):
-		print last_move
-		if last_move == 'O':
-			return 'X'
-		return 'O'
+			legal_move = False
+			while not legal_move:
+				# If move was illegal, print error and allow user to
+				# 	enter another move.
+				try:
+					row, column = raw_input(
+						'Player {}: Enter a (row, column) pair from (0,1,2), or enter to skip:\n' \
+						.format(player)) \
+						.strip().split(',')
+					row, column = int(row), int(column)
+				except ValueError:
+					print 'Please enter a valid (row,column) pair.'
+				else:
+					if self._is_legal_move(row, column):
+						legal_move = True
 
-	def play(self, firstmove):
-		win = False
-		move = firstmove
-		while not win:
-			self._render_board()
-			try:
-				column, row = raw_input(
-					'Player {}: Enter a (row, column) pair from (0,1,2), or enter to skip:\n' \
-					.format(move)) \
-					.strip().split(',')
-				column, row = int(column), int(row)
-			except ValueError:
-				print 'Skipped turn.'
-			else:
-				win = self._move(column, row, move)
-			move = self._get_move(move)
+						self._move(row, column, player)
+						player = self._update_player(player)
+					else:
+						print('Illegal move: Space already filled. Try again.')
+
+		if self.winner():
+			print(self.winner() + ' won the game.')
+		elif self.draw():
+			print('Draw')
 
 if __name__ == "__main__":
-	game = TicTacToe()
-
 	parser = argparse.ArgumentParser(
 		description = 'Tic-tac-toe, optionally with AI'
 		)
 	parser.add_argument(
-		'--firstmove',
+		'--firstplayer',
 		'-f',
 		type = str,
 		help = 'If not specified, defaults to X.',
@@ -106,7 +111,9 @@ if __name__ == "__main__":
 	parser.add_argument(
 		'--ai',
 		action = 'store_true',
-		help = 'Play against an AI player (AI plays as O). Defaults to human-vs-human.'
+		help = 'Play against an AI player (AI always plays as O). Defaults to human-vs-human.'
 		)
 	args = parser.parse_args()
-	game.play(args.firstmove)
+
+	board = Board()
+	board.play(args.firstplayer,args.ai)
