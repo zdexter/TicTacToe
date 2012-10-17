@@ -2,13 +2,56 @@
 
 import argparse
 import random
+from abc import abstractmethod
+
+class Player:
+	def __init__(self, symbol):
+		self._symbol = symbol
+
+	def __repr__(self):
+		return self._symbol
+
+	def __str__(self):
+		return self._symbol
+
+	@abstractmethod
+	def get_move(self):
+		pass
+
+class AIPlayer(Player):
+	def get_move(self, legal_moves):
+		random_move = legal_moves[
+			random.randint(0, len(legal_moves) - 1)
+			]
+		row, column = random_move
+		return row, column
+
+class HumanPlayer(Player):
+	def get_move(self, legal_moves):
+		while True:
+			# If move was illegal, print error and allow user to
+			# 	enter another move.
+			try:
+				row, column = raw_input(
+					'Player {}: Enter a (row, column) pair from (0,1,2), or enter to skip:\n' \
+					.format(self)) \
+					.strip().split(',')
+				row, column = int(row), int(column)
+			except ValueError:
+				print 'Please enter a valid (row,column) pair.'
+			else:
+				if [row,column] in legal_moves:
+					return row, column
+				else:
+					print('Illegal move: Space already filled. Try again.')
 
 class Board:
 	def __init__(self):
 		self._size = 3
 		self._board = [[None for x in range(self._size)]
 			for y in range(self._size)]
-		self._player = None
+		self._player = self._players = None
+
 	AI = 'O'
 
 	def __str__(self):
@@ -60,45 +103,15 @@ class Board:
 		self._board[x][y] = self._player
 
 	def _change_player(self):
-		if self._player == 'O':
-			self._player = 'X'
+		if str(self._player) == 'O':
+			self._player = self._players['X']
 		else:
-			self._player = 'O'
+			self._player = self._players['O']
 
 	def _game_over(self):
 		"""Return True if game is over and False if not.
 		"""
 		return bool(self.winner()) or self.draw()
-
-	def legal_moves(self,board=None):
-		"""Return the [x,y] pairs that represent legal moves.
-		"""
-		if not board:
-			board = self._board.data
-		
-		return [row for row in board if row != None]
-
-	def _human_move(self):
-		legal_move = False
-		while not legal_move:
-			# If move was illegal, print error and allow user to
-			# 	enter another move.
-			try:
-				row, column = raw_input(
-					'Player {}: Enter a (row, column) pair from (0,1,2), or enter to skip:\n' \
-					.format(self._player)) \
-					.strip().split(',')
-				row, column = int(row), int(column)
-			except ValueError:
-				print 'Please enter a valid (row,column) pair.'
-			else:
-				if self._is_legal_move(row, column):
-					legal_move = True
-
-					self._move(row, column)
-					self._change_player()
-				else:
-					print('Illegal move: Space already filled. Try again.')
 
 	def _legal_moves(self):
 		legal_moves = []
@@ -108,31 +121,26 @@ class Board:
 					legal_moves.append([row, col])
 		return legal_moves
 
-	def _ai_move(self):
-		# Player class
-		# 	player becomes subclass instance
+	def play(self, firstplayer, ai):		
+		self._players = {
+			"X": HumanPlayer('X'),
+			"O": AIPlayer('O') if ai else HumanPlayer('O')
+			}
 
-		legal_moves = self._legal_moves()
+		self._player = self._players[firstplayer]
 
-		random_move = legal_moves[
-			random.randint(0, len(legal_moves) - 1)
-			]
-		row, column = random_move
-
-		self._move(row, column)
-		self._change_player()
-
-	def play(self, firstplayer, ai):
-		self._player = firstplayer
 		while not self._game_over():
 			print(self)
-			if ai and self._player == self.AI:
-				self._ai_move()
-			else:
-				self._human_move()
+			row, column = self._player.get_move(
+				self._legal_moves()
+				)
+			self._move(row, column)
+			self._change_player()
 
 		if self.winner():
-			print(self.winner() + ' won the game.')
+			print('{} won the game.'.format(
+				self.winner()
+				))
 		elif self.draw():
 			print('Draw')
 
