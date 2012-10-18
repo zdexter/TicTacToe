@@ -23,7 +23,6 @@ class AIPlayer(Player):
 		super(AIPlayer, self).__init__(*args)
 		self._board = None
 		self._algorithm = kwargs['algorithm']
-		self._count = 0
 		self._move_to = []
 
 	def _get_move_naive(self):
@@ -39,11 +38,10 @@ class AIPlayer(Player):
 		"""Return [x,y] pair that represents best move
 			for the AI
 		"""
-		self._count += 1
 
 		best_move = None
-		best_move_utility = None
-		
+		best_move_utility = float("-inf")
+
 		for move in self._board.legal_moves():
 			self._board.move(move[0], move[1])
 
@@ -54,17 +52,15 @@ class AIPlayer(Player):
 
 			self._board.undo_latest_move()
 
-			if best_move_utility == None or move_utility > best_move_utility:
+			if move_utility > best_move_utility:
 				best_move_utility = move_utility
 				best_move = move
 		
 		return best_move, best_move_utility
 
 	def _minMove(self):
-		self._count += 1
-
 		best_move = None
-		best_move_utility = None
+		best_move_utility = float("inf")
 
 		for move in self._board.legal_moves():
 			self._board.move(move[0], move[1], self._board._players["X"])
@@ -75,21 +71,18 @@ class AIPlayer(Player):
 
 			self._board.undo_latest_move()
 
-			if best_move_utility == None or move_utility < best_move_utility:
+			if move_utility < best_move_utility:
 				best_move_utility = move_utility
 				best_move = move
-
 		return best_move, best_move_utility
 
 	def _get_move_minimax(self):
 		#import pdb; pdb.set_trace
-		self._count = 0
 		a = self._maxMove()
 		return a
 
 	def get_move(self, board):
-		import copy
-		self._board = copy.deepcopy(board)
+		self._board = board
 
 		if self._algorithm == 'minimax':
 			return self._get_move_minimax()[0]
@@ -205,11 +198,12 @@ class Board:
 	def utility(self):
 		"""Returns utility of prospective move to current player.
 		"""
-		if self.winner() and self.winner() == self._player:
-			return 1
-		elif self.draw():
-			return 0
-		return -1
+		winner = self.winner()
+		if winner:
+			if winner == self._player:
+				return 1
+			return -1
+		return 0
 
 	def game_over(self):
 		"""Return True if game is over and False if not.
