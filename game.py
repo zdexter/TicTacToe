@@ -4,7 +4,7 @@ import argparse
 import random
 from abc import abstractmethod
 
-class Player:
+class Player(object):
 	def __init__(self, symbol):
 		self._symbol = symbol
 
@@ -19,15 +19,86 @@ class Player:
 		pass
 
 class AIPlayer(Player):
-	def get_move(self, legal_moves):
+	def __init__(self, *args, **kwargs):
+		super(AIPlayer, self).__init__(*args)
+		self._board = None
+		self._algorithm = kwargs['algorithm']
+
+	def _get_move_naive(self):
+		legal_moves = self._board.legal_moves()
+		# Return a random move picked from the list of legal moves
 		random_move = legal_moves[
 			random.randint(0, len(legal_moves) - 1)
 			]
 		row, column = random_move
 		return row, column
 
+	def _maxMove(self):
+		print '_maxMove called, and state was '
+		print self._board
+		"""Return [x,y] pair that represents best move
+			for the AI
+		"""
+		if self._board.game_over():
+			return self._board.utility()
+
+		best_move = 0
+		legal_moves = self._board.legal_moves()
+		for move in legal_moves:
+			self._board.move(move[0], move[1])
+
+			self._minMove()
+			move_utility = self._board.utility()
+
+			if move_utility > best_move:
+				best_move = move
+
+			self._board.undo_latest_move()
+
+		if best_move == 0:
+			return legal_moves[0]
+
+		return best_move
+
+	def _minMove(self):
+		print '_minMove called, and state was '
+		print self._board
+		best_move = 0
+		legal_moves = self._board.legal_moves()
+		for move in legal_moves:
+			self._board.move(move[0], move[1])
+
+			self._maxMove()
+			move_utility = self._board.utility()
+
+			if move_utility > best_move:
+				bestmove = move
+			
+			self._board.undo_latest_move()
+
+		if best_move == 0:
+			return legal_moves[0]
+
+		return best_move
+
+	def _get_move_minimax(self):
+		# import pdb; pdb.set_trace
+		return self._maxMove()
+
+	def get_move(self, board):
+		import copy
+		self._board = copy.deepcopy(board)
+
+		if self._algorithm == 'minimax':
+			return self._get_move_minimax()
+		else:
+			return self._get_move_naive()
+
 class HumanPlayer(Player):
-	def get_move(self, legal_moves):
+	def get_move(self, board):
+		self._board = board
+		state = self._board.state
+		legal_moves = self._board.legal_moves()
 		while True:
 			# If move was illegal, print error and allow user to
 			# 	enter another move.
@@ -48,42 +119,57 @@ class HumanPlayer(Player):
 class Board:
 	def __init__(self):
 		self._size = 3
-		self._board = [[None for x in range(self._size)]
+		self.state = [[None for x in range(self._size)]
 			for y in range(self._size)]
 		self._player = self._players = None
+		self._movestack = []
 
 	AI = 'O'
 
 	def __str__(self):
 		buffer = ""
-		for row in self._board:
+		for row in self.state:
 			buffer += str(row) + '\n'
 		return buffer
 
 	def _win_horizontal(self):
-		for row in self._board:
+		for row in self.state:
 			if row[0] and row[0] == row[1] and row[0] == row[2]:
 				return row[0]
 
 	def _win_vertical(self):
-		b = self._board
+		b = self.state
 		for col in range(self._size):
 			if b[0][col] and b[0][col] == b[1][col] and \
 				b[0][col] == b[2][col]:
 				return b[0][col]
 
 	def _win_diagonals(self):
-		b = self._board
+		b = self.state
 		if (b[0][0] and b[0][0] == b[1][1] and b[0][0] == b[2][2]) \
 			or \
 			(b[2][0] and b[2][0] == b[1][1] and b[2][0] == b[0][2]):
 			return b[0][0]
 
+	def legal_moves(self):
+		legal_moves = []
+		for row in range(3):
+			for col in range(3):
+				if self.state[row][col] == None:
+					legal_moves.append([row, col])
+		return legal_moves
+
+	def undo_latest_move(self):
+		move_to_undo = self._movestack.pop()
+		self.state[
+			move_to_undo[0]][move_to_undo[1]
+			] = None
+
 	def draw(self):
 		"""Return False if any board space has yet to be filled.
 			and True if all spaces have been filled.
 		"""
-		for row in self._board:
+		for row in self.state:
 			for col in row:
 				if col == None:
 					return False
@@ -97,45 +183,43 @@ class Board:
 			or self._win_diagonals()
 
 	def _is_legal_move(self, x, y):
-		return not bool(self._board[x][y])
+		return not bool(self.state[x][y])
 
-	def _move(self, x, y):
-		self._board[x][y] = self._player
+	def move(self, x, y):
+		self.state[x][y] = self._player
+		self._movestack.append([x,y])
 
-	def _change_player(self):
+	def change_player(self):
 		if str(self._player) == 'O':
 			self._player = self._players['X']
 		else:
 			self._player = self._players['O']
 
-	def _game_over(self):
+	def utility(self):
+		if self.winner():
+			return 1
+		elif self.draw():
+			return 0
+		return -1
+
+	def game_over(self):
 		"""Return True if game is over and False if not.
 		"""
 		return bool(self.winner()) or self.draw()
 
-	def _legal_moves(self):
-		legal_moves = []
-		for row in range(self._size):
-			for col in range(self._size):
-				if self._board[row][col] == None:
-					legal_moves.append([row, col])
-		return legal_moves
-
 	def play(self, firstplayer, ai):		
 		self._players = {
 			"X": HumanPlayer('X'),
-			"O": AIPlayer('O') if ai else HumanPlayer('O')
+			"O": AIPlayer('O', algorithm=ai) if ai else HumanPlayer('O')
 			}
 
 		self._player = self._players[firstplayer]
 
-		while not self._game_over():
+		while not self.game_over():
 			print(self)
-			row, column = self._player.get_move(
-				self._legal_moves()
-				)
-			self._move(row, column)
-			self._change_player()
+			row, column = self._player.get_move(self)
+			self.move(row, column)
+			self.change_player()
 
 		if self.winner():
 			print('{} won the game.'.format(
@@ -152,14 +236,14 @@ if __name__ == "__main__":
 		'--firstplayer',
 		'-f',
 		type = str,
-		help = 'If not specified, defaults to X.',
+		help = 'Defaults to X.',
 		choices = {'X', 'O'},
 		default = 'X'
 		)
 	parser.add_argument(
 		'--ai',
-		action = 'store_true',
-		help = 'Play against an AI player (AI always plays as O). Defaults to human-vs-human.'
+		type = str,
+		help = 'Play against an AI (minimax|naive) player (AI always plays as O). Defaults to minimax.'
 		)
 	args = parser.parse_args()
 
