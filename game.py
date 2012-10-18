@@ -231,11 +231,12 @@ class Board:
 			self.change_player()
 
 		if self.winner():
-			print('{} won the game.'.format(
-				self.winner()
+			print('{} won the game:\n{}'.format(
+				self.winner(), self
 				))
+
 		elif self.draw():
-			print('Draw')
+			print('Draw:\n{}'.format(self))
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(
