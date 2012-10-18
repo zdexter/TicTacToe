@@ -23,6 +23,8 @@ class AIPlayer(Player):
 		super(AIPlayer, self).__init__(*args)
 		self._board = None
 		self._algorithm = kwargs['algorithm']
+		self._count = 0
+		self._move_to = []
 
 	def _get_move_naive(self):
 		legal_moves = self._board.legal_moves()
@@ -34,63 +36,67 @@ class AIPlayer(Player):
 		return row, column
 
 	def _maxMove(self):
-		print '_maxMove called, and state was '
-		print self._board
 		"""Return [x,y] pair that represents best move
 			for the AI
 		"""
-		if self._board.game_over():
-			return self._board.utility()
-
-		best_move = 0
+		self._count += 1
 		legal_moves = self._board.legal_moves()
-		for move in legal_moves:
+
+		best_move = None
+		best_move_utility = None
+		
+		for move in self._board.legal_moves():
 			self._board.move(move[0], move[1])
 
-			self._minMove()
-			move_utility = self._board.utility()
-
-			if move_utility > best_move:
-				best_move = move
+			if self._board.game_over():
+				move_utility = self._board.utility()
+				# print 'Utility of {},{} was {} when board was \n{}\n'.format(
+				# 	move[0], move[1], move_utility, self._board
+				# 	)
+			else:
+				self._move_to, move_utility = self._minMove()
 
 			self._board.undo_latest_move()
 
-		if best_move == 0:
-			return legal_moves[0]
-
-		return best_move
+			if best_move_utility == None or move_utility > best_move_utility:
+				best_move_utility = move_utility
+				best_move = move
+		
+		return best_move, best_move_utility
 
 	def _minMove(self):
-		print '_minMove called, and state was '
-		print self._board
-		best_move = 0
-		legal_moves = self._board.legal_moves()
-		for move in legal_moves:
-			self._board.move(move[0], move[1])
+		self._count += 1
 
-			self._maxMove()
-			move_utility = self._board.utility()
+		best_move = None
+		best_move_utility = None
 
-			if move_utility > best_move:
-				bestmove = move
-			
+		for move in self._board.legal_moves():
+			self._board.move(move[0], move[1], self._board._players["X"])
+			if self._board.game_over():
+				move_utility = self._board.utility()
+			else:
+				self._move_to, move_utility = self._maxMove()
+
 			self._board.undo_latest_move()
 
-		if best_move == 0:
-			return legal_moves[0]
+			if best_move_utility == None or move_utility < best_move_utility:
+				best_move_utility = move_utility
+				best_move = move
 
-		return best_move
+		return best_move, best_move_utility
 
 	def _get_move_minimax(self):
-		# import pdb; pdb.set_trace
-		return self._maxMove()
+		#import pdb; pdb.set_trace
+		self._count = 0
+		a = self._maxMove()
+		return a
 
 	def get_move(self, board):
 		import copy
 		self._board = copy.deepcopy(board)
 
 		if self._algorithm == 'minimax':
-			return self._get_move_minimax()
+			return self._get_move_minimax()[0]
 		else:
 			return self._get_move_naive()
 
@@ -146,10 +152,10 @@ class Board:
 
 	def _win_diagonals(self):
 		b = self.state
-		if (b[0][0] and b[0][0] == b[1][1] and b[0][0] == b[2][2]) \
-			or \
-			(b[2][0] and b[2][0] == b[1][1] and b[2][0] == b[0][2]):
+		if (b[0][0] and b[0][0] == b[1][1] and b[0][0] == b[2][2]):
 			return b[0][0]
+		if (b[2][0] and b[2][0] == b[1][1] and b[2][0] == b[0][2]):
+			return b[2][0]
 
 	def legal_moves(self):
 		legal_moves = []
@@ -185,8 +191,10 @@ class Board:
 	def _is_legal_move(self, x, y):
 		return not bool(self.state[x][y])
 
-	def move(self, x, y):
-		self.state[x][y] = self._player
+	def move(self, x, y, symbol=None):
+		if not symbol:
+			symbol = self._player
+		self.state[x][y] = symbol
 		self._movestack.append([x,y])
 
 	def change_player(self):
@@ -196,9 +204,14 @@ class Board:
 			self._player = self._players['O']
 
 	def utility(self):
-		if self.winner():
+		"""Returns utility of prospective move to current player.
+		"""
+		# print '\nEVALUATING BOARD:'
+		# print self
+		if self.winner() and self.winner() == self._player:
 			return 1
 		elif self.draw():
+			# print 'Got draw'
 			return 0
 		return -1
 
