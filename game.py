@@ -40,7 +40,6 @@ class AIPlayer(Player):
 			for the AI
 		"""
 		self._count += 1
-		legal_moves = self._board.legal_moves()
 
 		best_move = None
 		best_move_utility = None
@@ -129,8 +128,13 @@ class Board:
 
 	def __str__(self):
 		buffer = ""
-		for row in self.state:
-			buffer += str(row) + '\n'
+		for i in range(self._size):
+			for j in range(self._size):
+				if self.state[i][j] is None:
+					buffer += "| _ "
+				else:
+					buffer += ("| {} ").format(self.state[i][j])
+			buffer += '|\n'
 		return buffer
 
 	def _win_horizontal(self):
