@@ -50,9 +50,6 @@ class AIPlayer(Player):
 
 			if self._board.game_over():
 				move_utility = self._board.utility()
-				# print 'Utility of {},{} was {} when board was \n{}\n'.format(
-				# 	move[0], move[1], move_utility, self._board
-				# 	)
 			else:
 				self._move_to, move_utility = self._minMove()
 
@@ -130,8 +127,6 @@ class Board:
 		self._player = self._players = None
 		self._movestack = []
 
-	AI = 'O'
-
 	def __str__(self):
 		buffer = ""
 		for row in self.state:
@@ -206,12 +201,9 @@ class Board:
 	def utility(self):
 		"""Returns utility of prospective move to current player.
 		"""
-		# print '\nEVALUATING BOARD:'
-		# print self
 		if self.winner() and self.winner() == self._player:
 			return 1
 		elif self.draw():
-			# print 'Got draw'
 			return 0
 		return -1
 
